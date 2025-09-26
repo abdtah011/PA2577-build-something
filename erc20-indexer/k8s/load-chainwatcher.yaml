@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: load-chainwatcher
+  namespace: erc20
+spec:
+  containers:
+    - name: cpu-stress
+      image: busybox
+      command: ["sh", "-c"]
+      args:
+        - >
+          while true; do
+            echo $((13**50000)) 1>/dev/null 2>&1;
+          done

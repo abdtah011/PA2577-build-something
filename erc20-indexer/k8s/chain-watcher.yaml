@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chain-watcher
+  namespace: erc20
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chain-watcher
+  template:
+    metadata:
+      labels:
+        app: chain-watcher
+    spec:
+      containers:
+        - name: app
+          image: abth21/chain-watcher:v5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: ETHERSCAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-secret
+                  key: ETHERSCAN_API_KEY
+            - name: WATCH_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-secret
+                  key: WATCH_ADDRESS
+            - name: PGHOST
+              value: "postgres"
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: "appdb"
+            - name: PGUSER
+              value: "app"
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pg-secret
+                  key: APP_PASSWORD
+            - name: POLL_DELAY_MS
+              value: "86400000"
+            - name: RUN_ONCE
+              value: "true"
+            - name: REQUEST_DELAY_MS
+              value: "2000"
+            - name: RUN_ONCE_SLEEP_MS
+              value: "86400000"

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ERC20 Indexer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    h1 { margin-bottom: 8px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin: 12px 0; }
+    input, button, select { padding:8px; font-size:14px; }
+    table { border-collapse:collapse; width:100%; margin-top:16px; }
+    th, td { border:1px solid #ddd; padding:8px; font-size:12px; }
+    th { background:#f3f3f3; text-align:left; }
+    .muted { color:#666; font-size:12px; }
+    .pager { display:flex; gap:8px; margin-top:8px; align-items:center; }
+  </style>
+</head>
+<body>
+  <h1>ERC20 Indexer</h1>
+  <div class="muted">Sök på adress eller visa alla transaktioner från databasen.</div>
+
+  <div class="row">
+    <input id="addr" placeholder="0x... address" size="50" />
+    <button id="btnSearch">Sök</button>
+    <button id="btnAll">Visa alla</button>
+    <label>Limit:
+      <select id="limit">
+        <option>25</option><option selected>50</option><option>100</option><option>200</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="status" class="muted"></div>
+
+  <table id="tbl" hidden>
+    <thead>
+      <tr>
+        <th>Block</th>
+        <th>Tx Hash</th>
+        <th>LogIdx</th>
+        <th>Contract</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Value (wei)</th>
+        <th>Symbol</th>
+        <th>Ts</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="pager" class="pager" hidden>
+    <button id="prev">Prev</button>
+    <span id="pageinfo" class="muted"></span>
+    <button id="next">Next</button>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = (path) => fetch(path).then(r => r.json());
+
+let mode = 'all'; // 'all' | 'addr'
+let offset = 0;
+
+function render(rows) {
+  const tbody = $('tbl').querySelector('tbody');
+  tbody.innerHTML = '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.block_number}</td>
+      <td><code>${r.tx_hash}</code></td>
+      <td>${r.log_index}</td>
+      <td><code>${r.contract||''}</code></td>
+      <td><code>${r.from_addr||''}</code></td>
+      <td><code>${r.to_addr||''}</code></td>
+      <td>${r.value_wei}</td>
+      <td>${r.token_symbol||''}</td>
+      <td>${r.ts||''}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  $('tbl').hidden = rows.length === 0;
+}
+
+async function loadAll() {
+  const limit = Number($('limit').value);
+  $('status').textContent = 'Hämtar alla...';
+  const rows = await api(`/events/all?limit=${limit}&offset=${offset}`);
+  render(rows);
+  $('status').textContent = `Visar ${rows.length} rader`;
+  $('pager').hidden = rows.length === 0;
+  $('pageinfo').textContent = `offset ${offset}, limit ${limit}`;
+}
+
+async function loadByAddress() {
+  const addr = $('addr').value.trim().toLowerCase();
+  if (!addr) { alert('Ange adress 0x...'); return; }
+  const limit = Number($('limit').value);
+  $('status').textContent = 'Söker...';
+  const rows = await api(`/events?address=${addr}&limit=${limit}`);
+  render(rows);
+  $('status').textContent = `Fann ${rows.length} rader för ${addr}`;
+  $('pager').hidden = true; // enkel: ingen offset för address-sök i MVP
+}
+
+$('btnAll').onclick = () => { mode = 'all'; offset = 0; loadAll(); };
+$('btnSearch').onclick = () => { mode = 'addr'; offset = 0; loadByAddress(); };
+$('prev').onclick = () => { const limit = Number($('limit').value); offset = Math.max(0, offset - limit); loadAll(); };
+$('next').onclick = () => { const limit = Number($('limit').value); offset += limit; loadAll(); };
+
+// Startvy: visa alla
+loadAll();
+</script>
+</body>
+</html>
