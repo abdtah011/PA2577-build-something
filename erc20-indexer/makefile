@@ -47,6 +47,7 @@ secrets: ns ## create/update app secrets
 	  echo ">> Set ETHERSCAN_API_KEY and WATCH_ADDRESS (in .env or as make vars)"; exit 1; fi
 	kubectl -n $(NAMESPACE) create secret generic pg-secret \
 	  --from-literal=APP_PASSWORD=$(PG_APP_PASSWORD) \
+	  --from-literal=POSTGRES_PASSWORD=$(PG_APP_PASSWORD) \
 	  --dry-run=client -o yaml | kubectl apply -f -
 	kubectl -n $(NAMESPACE) create secret generic watcher-secret \
 	  --from-literal=ETHERSCAN_API_KEY=$(ETHERSCAN_API_KEY) \

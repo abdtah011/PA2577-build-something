@@ -9,7 +9,6 @@ const POLL_DELAY_MS = Number(process.env.POLL_DELAY_MS || 86400000); // default:
 const PLACEHOLDER_DELAY_MS = Number(process.env.PLACEHOLDER_DELAY_MS || RETRY_DELAY_MS);
 const RUN_ONCE = /^true$/i.test(process.env.RUN_ONCE || '');
 const RUN_ONCE_SLEEP_MS = Number(process.env.RUN_ONCE_SLEEP_MS || POLL_DELAY_MS || 86400000);
-const BATCH_BLOCK_SPAN = BigInt(process.env.BATCH_BLOCK_SPAN || 200000);
 const REQUEST_DELAY_MS = Number(process.env.REQUEST_DELAY_MS || 2000);
 const isPlaceholderKey = (key) => !key || /^(?:PUT_|YourApiKeyToken)/i.test(key);
 const isPlaceholderAddress = (addr) => !addr || /^0xYourEthereumAddress$/i.test(addr);
@@ -17,12 +16,18 @@ const isPlaceholderAddress = (addr) => !addr || /^0xYourEthereumAddress$/i.test(
 const {
   ETHERSCAN_API_KEY,
   WATCH_ADDRESS,
+  ETHERSCAN_BASE_URL = 'https://api.etherscan.io',
+  ETHERSCAN_CHAIN_ID,
+  ETH_CHAIN_ID,
   PGHOST = 'postgres',
   PGPORT = 5432,
   PGDATABASE = 'appdb',
   PGUSER = 'app',
   PGPASSWORD = 'secret'
 } = process.env;
+
+const chainId = (ETHERSCAN_CHAIN_ID || ETH_CHAIN_ID || '1').toString();
+const etherscanBase = `${ETHERSCAN_BASE_URL.replace(/\/$/, '')}/v2/api`;
 
 const pool = new Pool({ host: PGHOST, port: PGPORT, database: PGDATABASE, user: PGUSER, password: PGPASSWORD });
 
@@ -57,7 +62,7 @@ async function upsert(t) {
 async function fetchTransfersByAddress(addr, startBlock, endBlock) {
   // Etherscan endpoint: 'ERC20 - Token Transfer Events by Address'
   // docs: https://docs.etherscan.io/api-endpoints/accounts#get-a-list-of-erc20-token-transfer-events-by-address
-  const url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${addr}&startblock=${startBlock}&endblock=${endBlock}&page=1&offset=10000&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
+  const url = `${etherscanBase}?chainid=${chainId}&module=account&action=tokentx&address=${addr}&startblock=${startBlock}&endblock=${endBlock}&page=1&offset=10000&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
   const { data } = await axios.get(url, { timeout: 20000 });
   if (data.status === "1" || data.message === "No transactions found") {
     return data.result || [];
@@ -78,8 +83,7 @@ async function runCycle() {
     if (attempt > 0 && REQUEST_DELAY_MS > 0) {
       await sleep(REQUEST_DELAY_MS);
     }
-    const to = from + BATCH_BLOCK_SPAN;
-    const rows = await fetchTransfersByAddress(WATCH_ADDRESS, from.toString(), to.toString());
+    const rows = await fetchTransfersByAddress(WATCH_ADDRESS, from.toString(), '99999999');
     attempt += 1;
     if (!rows.length) {
       return processed;

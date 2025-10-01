@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: abth21/chain-watcher:v5
+          image: abth21/chain-watcher:v7
           resources:
             requests:
               cpu: 50m

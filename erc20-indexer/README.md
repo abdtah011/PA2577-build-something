@@ -23,6 +23,7 @@ A minimal Kubernetes-ready stack that ingests ERC20 token transfer events from E
    $EDITOR .env
    ```
    - Set `DOCKER_USER`, `ETHERSCAN_API_KEY`, and `WATCH_ADDRESS`.
+   - Optionally override `ETH_CHAIN_ID` if you target a different EVM chain supported by Etherscan V2.
    - Alternatively override values at runtime: `make deploy DOCKER_USER=… WATCH_ADDRESS=…`.
    - By default the watcher performs one ingestion pass (`RUN_ONCE=true`). Set `RUN_ONCE=false` if you want continuous polling every `POLL_DELAY_MS` (24h default).
 
@@ -72,7 +73,7 @@ A minimal Kubernetes-ready stack that ingests ERC20 token transfer events from E
 - **Watcher behaviour**:
   - `RUN_ONCE=true` (default) ingests the backlog once and then sleeps for `RUN_ONCE_SLEEP_MS` (24 h). Restart the deployment for another batch.
   - For continuous polling, set `RUN_ONCE=false` and keep `POLL_DELAY_MS` at the desired interval.
-  - `REQUEST_DELAY_MS` throttles Etherscan requests to respect API rate limits.
+  - `REQUEST_DELAY_MS` throttles Etherscan requests to respect API rate limits; `ETH_CHAIN_ID` selects the chain for the V2 API (default `1` for Ethereum mainnet).
 - **Database access**: `kubectl -n erc20 exec deploy/postgres -- psql -U app -d appdb`.
 
 ## Horizontal Scaling
@@ -131,6 +132,7 @@ Use this checklist when presenting the project or verifying a fresh clone:
 - **Ingress refuses connection**: Ensure the ingress controller is installed and running (`kubectl -n ingress-nginx get pods`).
 - **Watcher idle**: If `RUN_ONCE=true`, restart it after updating secrets (`kubectl -n erc20 rollout restart deploy/chain-watcher`).
 - **Database empty**: Check watcher logs (`kubectl -n erc20 logs deploy/chain-watcher`) for API key errors.
+- **Schema missing after `make deploy`**: Run `make db-apply` once Postgres is Ready (the initial deploy can race while the pod starts).
 - **Local testing only**: If ingress is unavailable, port-forward temporarily with `kubectl -n erc20 port-forward svc/indexer-api 8080:80`.
 
 ## Cleanup
