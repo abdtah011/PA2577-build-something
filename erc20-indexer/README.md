@@ -25,7 +25,7 @@ A minimal Kubernetes-ready stack that ingests ERC20 token transfer events from E
    - Set `DOCKER_USER`, `ETHERSCAN_API_KEY`, and `WATCH_ADDRESS`.
    - Optionally override `ETH_CHAIN_ID` if you target a different EVM chain supported by Etherscan V2.
    - Alternatively override values at runtime: `make deploy DOCKER_USER=… WATCH_ADDRESS=…`.
-   - By default the watcher performs one ingestion pass (`RUN_ONCE=true`). Set `RUN_ONCE=false` if you want continuous polling every `POLL_DELAY_MS` (24h default).
+   - The watcher runs once by default (`RUN_ONCE=true`). Flip it to `false` for continuous polling every `POLL_DELAY_MS` (24h default).
 
 2. **Initialize cluster resources**
    ```bash
@@ -34,7 +34,7 @@ A minimal Kubernetes-ready stack that ingests ERC20 token transfer events from E
    Creates the namespace, secrets, and installs metrics-server (needed for HPAs).
 
 3. **(Optional) Build & push images**
-   Pre-built images are already published to Docker Hub under `abth21/indexer-api:v2` and `abth21/chain-watcher:v5`. Only rebuild if you modify the code:
+   Images `abth21/indexer-api:v2` and `abth21/chain-watcher:v7` are already on Docker Hub. Rebuild only if you have local changes:
    ```bash
    make build-all
    make push-all
@@ -61,7 +61,7 @@ A minimal Kubernetes-ready stack that ingests ERC20 token transfer events from E
    ```
 
 6. **Access the app**
-   - The ingress hosts `indexer.localtest.me` which resolves to `127.0.0.1`. If your OS lacks wildcard support for `*.localtest.me`, add this line to `/etc/hosts` (or Windows hosts file):
+   - The ingress serves `indexer.localtest.me` (resolves to `127.0.0.1`). If your OS lacks wildcard support for `*.localtest.me`, add this line to `/etc/hosts` (or the Windows hosts file):
      ```
      127.0.0.1 indexer.localtest.me
      ```
@@ -77,7 +77,7 @@ A minimal Kubernetes-ready stack that ingests ERC20 token transfer events from E
 - **Database access**: `kubectl -n erc20 exec deploy/postgres -- psql -U app -d appdb`.
 
 ## Horizontal Scaling
-Requirement: “All microservices must be horizontally scalable independently.”
+- Each service scales on its own.
 - HPAs are provided for each deployment (`k8s/indexer-api-hpa.yaml`, `k8s/chain-watcher-hpa.yaml`).
 - Enable them after metrics-server is running:
   ```bash
@@ -109,8 +109,7 @@ hey -z 60s -c 20 "http://indexer.localtest.me/events/all?limit=50"
 watch kubectl -n erc20 get hpa/indexer-api-hpa deploy/indexer-api
 ```
 
-## Demo Script (Make-first)
-Use this checklist when presenting the project or verifying a fresh clone:
+## Demo Checklist (Make-first)
 
 1. `make init` – provisions namespace, secrets, and metrics-server prerequisites.
 2. `make deploy` – deploys Postgres (schema included), chain-watcher, indexer-api, and ingress using the pre-built Docker Hub images.
@@ -125,7 +124,7 @@ Use this checklist when presenting the project or verifying a fresh clone:
    kubectl -n erc20 top pods
    kubectl -n erc20 get hpa/indexer-api-hpa deploy/indexer-api
    ```
-   Within ~1 minute the HPA scales `indexer-api` up (CPU should rise past the 60% target). When finished: `kubectl -n erc20 delete pod api-load` and optionally `kubectl delete hpa indexer-api-hpa -n erc20`.
+   Within ~1 minute the HPA should scale `indexer-api` up (CPU crosses the 60% target). After the demo: `kubectl -n erc20 delete pod api-load`; optionally `kubectl delete hpa indexer-api-hpa -n erc20`.
 7. Cleanup (if needed): `make nuke` and `kubectl delete ns ingress-nginx`.
 
 ## Troubleshooting
@@ -141,4 +140,4 @@ make nuke            # deletes the erc20 namespace
 kubectl delete ns ingress-nginx  # optional, removes ingress controller
 ```
 
-Feel free to tailor the `.env` and manifests for your registry, namespace, domains, or scaling targets before committing.
+Adjust `.env` and the manifests for your registry, namespace, domains, or scaling targets before committing.
